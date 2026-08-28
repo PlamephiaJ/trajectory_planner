@@ -52,4 +52,6 @@ trajectory_planner:
     seed_x: .nan
     seed_y: .nan
     seed_yaw: .nan
+    # auto | clockwise | counterclockwise (ROS world x-y coordinates).
+    direction: auto
     reverse: false

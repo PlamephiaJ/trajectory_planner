@@ -49,11 +49,22 @@ ros2 launch trajectory_planner trajectory_planner.launch.py \
 RViz2 默认自动打开，显示 `/map`、蓝色中心线和按红（慢）到绿（快）着色的最终
 轨迹。无图形界面时增加 `open_rviz:=false`。
 
+行驶方向可以显式指定（以 ROS 世界坐标系的 x-y 平面为准）：
+
+```bash
+ros2 launch trajectory_planner trajectory_planner.launch.py \
+  map_yaml:=$PWD/map.yaml direction:=clockwise
+```
+
+`direction` 可取 `clockwise`、`counterclockwise` 或兼容旧行为的 `auto`。
+显式指定方向时不要同时使用 `reverse: true` 或 `seed_yaw`。
+
 ## 离线 Python
 
 ```bash
 python3 -m trajectory_planner map.yaml \
-  --map-image map.pgm --output trajectory.csv --preview preview.png
+  --map-image map.pgm --output trajectory.csv --preview preview.png \
+  --direction counterclockwise
 ```
 
 默认 CSV 只有 `x,y,speed`；增加 `--detailed-csv` 可输出全部诊断字段。

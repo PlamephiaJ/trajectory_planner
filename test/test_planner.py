@@ -8,6 +8,7 @@ from trajectory_planner import (
     MapData, PlannerConfig, plan_trajectory,
     save_compact_csv, save_detailed_csv,
 )
+from trajectory_planner.centerline import _orient_and_rotate_cycle
 from trajectory_planner.geometry import minimum_dense_clearance
 from trajectory_planner.map_loader import load_map
 from trajectory_planner.velocity import available_longitudinal_accel
@@ -43,6 +44,7 @@ def test_closed_trajectory_and_dynamic_limits(tmp_path):
             max_lateral_accel=5.0,
             max_accel=2.5,
             max_decel=5.0,
+            direction='counterclockwise',
         ),
     )
     assert len(trajectory.x) > 100
@@ -52,6 +54,12 @@ def test_closed_trajectory_and_dynamic_limits(tmp_path):
     assert np.linalg.norm(
         np.array([trajectory.x[0], trajectory.y[0]]) -
         np.array([trajectory.x[-1], trajectory.y[-1]])) < 0.5
+    following_x = np.roll(trajectory.x, -1)
+    following_y = np.roll(trajectory.y, -1)
+    signed_twice_area = np.sum(
+        trajectory.x * following_y - following_x * trajectory.y)
+    assert signed_twice_area > 0.0
+    assert trajectory.direction == 'counterclockwise'
 
     following_speed = np.roll(trajectory.speed, -1)
     forward_delta = following_speed ** 2 - trajectory.speed ** 2
@@ -98,6 +106,9 @@ def test_config_validation():
         PlannerConfig(seed_x=1.0),
         PlannerConfig(max_velocity_iterations=0),
         PlannerConfig(time_optimization_passes=0),
+        PlannerConfig(direction='left'),
+        PlannerConfig(direction='clockwise', reverse=True),
+        PlannerConfig(direction='counterclockwise', seed_yaw=0.0),
     ]
     for config in invalid:
         try:
@@ -105,6 +116,29 @@ def test_config_validation():
         except ValueError:
             continue
         raise AssertionError(f'Invalid configuration was accepted: {config}')
+
+
+def test_explicit_trajectory_direction():
+    counterclockwise = np.array([
+        [0.0, 0.0],
+        [2.0, 0.0],
+        [2.0, 1.0],
+        [0.0, 1.0],
+    ])
+
+    def signed_twice_area(points):
+        following = np.roll(points, -1, axis=0)
+        return np.sum(
+            points[:, 0] * following[:, 1] -
+            following[:, 0] * points[:, 1])
+
+    clockwise = _orient_and_rotate_cycle(
+        counterclockwise, PlannerConfig(direction='clockwise'))
+    assert signed_twice_area(clockwise) < 0.0
+
+    restored = _orient_and_rotate_cycle(
+        clockwise, PlannerConfig(direction='counterclockwise'))
+    assert signed_twice_area(restored) > 0.0
 
 
 def test_map_coordinate_round_trip():

@@ -39,6 +39,7 @@ class PlannerConfig:
     seed_x: Optional[float] = None
     seed_y: Optional[float] = None
     seed_yaw: Optional[float] = None
+    direction: str = 'auto'
     reverse: bool = False
 
     @property
@@ -97,6 +98,18 @@ class PlannerConfig:
         seeds = (self.seed_x, self.seed_y)
         if (seeds[0] is None) != (seeds[1] is None):
             raise ValueError('seed_x and seed_y must be supplied together')
-        optional_values = [value for value in (*seeds, self.seed_yaw) if value is not None]
+        optional_values = [
+            value for value in (*seeds, self.seed_yaw)
+            if value is not None
+        ]
         if not all(math.isfinite(value) for value in optional_values):
             raise ValueError('Seed values must be finite')
+        valid_directions = {'auto', 'clockwise', 'counterclockwise'}
+        if self.direction not in valid_directions:
+            raise ValueError(
+                'direction must be one of: auto, clockwise, counterclockwise')
+        legacy_direction_hint = self.reverse or self.seed_yaw is not None
+        if self.direction != 'auto' and legacy_direction_hint:
+            raise ValueError(
+                'reverse and seed_yaw require direction=auto; an explicit '
+                'direction already determines trajectory orientation')

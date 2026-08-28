@@ -39,7 +39,8 @@ class TrajectoryPlannerNode(Node):
         self.get_logger().info(
             f'Published {len(self.trajectory.x)} points, '
             f'{self.trajectory.length:.2f} m, estimated lap '
-            f'{self.trajectory.estimated_lap_time:.2f} s; CSV: {csv_path}')
+            f'{self.trajectory.estimated_lap_time:.2f} s, direction '
+            f'{self.trajectory.direction}; CSV: {csv_path}')
 
     def _required_path(self, parameter_name: str) -> Path:
         value = str(self.get_parameter(parameter_name).value)

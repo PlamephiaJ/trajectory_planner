@@ -65,3 +65,13 @@ class Trajectory:
         next_speed = np.roll(self.speed, -1)
         mean_speed = np.maximum(0.5 * (self.speed + next_speed), 1.0e-3)
         return float(np.sum(self.segment_length / mean_speed))
+
+    @property
+    def direction(self) -> str:
+        """Return the effective travel direction in the world x-y plane."""
+        next_x = np.roll(self.x, -1)
+        next_y = np.roll(self.y, -1)
+        signed_twice_area = float(np.sum(
+            self.x * next_y - next_x * self.y))
+        return (
+            'counterclockwise' if signed_twice_area > 0.0 else 'clockwise')

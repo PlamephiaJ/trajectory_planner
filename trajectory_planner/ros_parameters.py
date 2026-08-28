@@ -50,6 +50,7 @@ PLANNER_DEFAULTS = {
     'seed_x': float('nan'),
     'seed_y': float('nan'),
     'seed_yaw': float('nan'),
+    'direction': 'auto',
     'reverse': False,
 }
 

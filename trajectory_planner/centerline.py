@@ -262,12 +262,22 @@ def _orient_and_rotate_cycle(
         seed = np.array([config.seed_x, config.seed_y])
         start = int(np.argmin(np.linalg.norm(points - seed, axis=1)))
         points = np.roll(points, -start, axis=0)
-    should_reverse = config.reverse
-    if config.seed_yaw is not None:
-        forward = points[1] - points[-1]
-        heading = np.array([math.cos(config.seed_yaw), math.sin(config.seed_yaw)])
-        if float(np.dot(forward, heading)) < 0.0:
-            should_reverse = not should_reverse
+    if config.direction == 'auto':
+        should_reverse = config.reverse
+        if config.seed_yaw is not None:
+            forward = points[1] - points[-1]
+            heading = np.array([
+                math.cos(config.seed_yaw), math.sin(config.seed_yaw)])
+            if float(np.dot(forward, heading)) < 0.0:
+                should_reverse = not should_reverse
+    else:
+        following = np.roll(points, -1, axis=0)
+        signed_twice_area = float(np.sum(
+            points[:, 0] * following[:, 1] -
+            following[:, 0] * points[:, 1]))
+        is_counterclockwise = signed_twice_area > 0.0
+        wants_counterclockwise = config.direction == 'counterclockwise'
+        should_reverse = is_counterclockwise != wants_counterclockwise
     if should_reverse:
         points = np.concatenate((points[:1], points[:0:-1]), axis=0)
     return points

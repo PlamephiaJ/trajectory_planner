@@ -51,6 +51,7 @@ PARAMETER_DEFAULTS = {
     'seed_x': '.nan',
     'seed_y': '.nan',
     'seed_yaw': '.nan',
+    'direction': 'auto',
     'reverse': 'false',
     'use_sim_time': 'false',
 }

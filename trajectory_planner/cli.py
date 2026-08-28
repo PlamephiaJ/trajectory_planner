@@ -39,6 +39,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument('--seed-x', type=float)
     parser.add_argument('--seed-y', type=float)
     parser.add_argument('--seed-yaw', type=float)
+    parser.add_argument(
+        '--direction', choices=('auto', 'clockwise', 'counterclockwise'),
+        default='auto')
     parser.add_argument('--reverse', action='store_true')
     return parser
 
@@ -71,6 +74,7 @@ def main(args=None) -> None:
         seed_x=values.seed_x,
         seed_y=values.seed_y,
         seed_yaw=values.seed_yaw,
+        direction=values.direction,
         reverse=values.reverse,
     )
     try:
@@ -86,6 +90,7 @@ def main(args=None) -> None:
     print(f'points: {len(trajectory.x)}')
     print(f'length: {trajectory.length:.2f} m')
     print(f'estimated lap time: {trajectory.estimated_lap_time:.2f} s')
+    print(f'direction: {trajectory.direction}')
     print(f'CSV: {csv_path}')
     if preview_path:
         print(f'preview: {preview_path}')
