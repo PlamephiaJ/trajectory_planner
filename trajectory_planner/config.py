@@ -13,6 +13,7 @@ class PlannerConfig:
     centerline_smoothing: float = 0.25
     vehicle_width: float = 0.30
     wall_margin: float = 0.05
+    max_occupied_speckle_area: int = 1
     max_speed: float = 8.0
     min_speed: float = 0.5
     max_lateral_accel: float = 7.0
@@ -66,6 +67,12 @@ class PlannerConfig:
             raise ValueError('Parameters must be positive: ' + ', '.join(bad))
         if self.wall_margin < 0.0:
             raise ValueError('wall_margin cannot be negative')
+        if (
+            self.max_occupied_speckle_area < 0 or
+            int(self.max_occupied_speckle_area) != self.max_occupied_speckle_area
+        ):
+            raise ValueError(
+                'max_occupied_speckle_area must be a non-negative integer')
         if self.min_speed < 0.0 or self.min_speed > self.max_speed:
             raise ValueError('min_speed must be in [0, max_speed]')
         if self.centerline_smoothing < 0.0:

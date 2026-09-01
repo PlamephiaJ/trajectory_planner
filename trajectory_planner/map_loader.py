@@ -12,7 +12,11 @@ from .exceptions import PlanningError
 from .models import MapData
 
 
-def load_map(yaml_path: Path, image_path: Optional[Path] = None) -> MapData:
+def load_map(
+    yaml_path: Path,
+    image_path: Optional[Path] = None,
+    max_occupied_speckle_area: int = 0,
+) -> MapData:
     """Load ROS map metadata, optionally overriding its image path.
 
     The override makes the offline API explicit and also allows a PGM and YAML
@@ -53,6 +57,7 @@ def load_map(yaml_path: Path, image_path: Optional[Path] = None) -> MapData:
         raise PlanningError('Map origin must contain finite values')
     negate = bool(int(metadata.get('negate', 0)))
     free_threshold = float(metadata.get('free_thresh', 0.196))
+    occupied_threshold = float(metadata.get('occupied_thresh', 0.65))
     shade = image.astype(np.float32) / 255.0
     occupancy_probability = shade if negate else 1.0 - shade
     mode = str(metadata.get('mode', 'trinary')).lower()
@@ -62,10 +67,17 @@ def load_map(yaml_path: Path, image_path: Optional[Path] = None) -> MapData:
         # Raw maps store occupancy values directly; 0 is free and 100 occupied.
         raw_value = image if not negate else 255 - image
         free = raw_value <= int(round(100.0 * free_threshold))
+        occupied = (
+            (raw_value <= 100) &
+            (raw_value >= int(round(100.0 * occupied_threshold))))
     else:
         free = occupancy_probability < free_threshold
+        occupied = occupancy_probability > occupied_threshold
     if mode == 'trinary':
         free &= np.abs(image.astype(np.int16) - 205) > 1
+
+    free = _remove_enclosed_occupied_speckles(
+        free, occupied, max_occupied_speckle_area)
 
     if np.count_nonzero(free) < 100:
         raise PlanningError('Map contains too few free cells')
@@ -79,3 +91,37 @@ def load_map(yaml_path: Path, image_path: Optional[Path] = None) -> MapData:
         origin_y=float(origin[1]),
         origin_yaw=float(origin[2]),
     )
+
+
+def _remove_enclosed_occupied_speckles(
+    free: np.ndarray,
+    occupied: np.ndarray,
+    max_area: int,
+) -> np.ndarray:
+    """Fill tiny occupied components only when free space encloses them."""
+    if max_area < 0 or int(max_area) != max_area:
+        raise ValueError(
+            'max_occupied_speckle_area must be a non-negative integer')
+    max_area = int(max_area)
+    if max_area == 0 or not np.any(occupied):
+        return free
+
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(
+        occupied.astype(np.uint8), connectivity=8)
+    cleaned = free.copy()
+    kernel = np.ones((3, 3), dtype=np.uint8)
+    for label in range(1, count):
+        if int(stats[label, cv2.CC_STAT_AREA]) > max_area:
+            continue
+        component = labels == label
+        if (
+            np.any(component[0]) or np.any(component[-1]) or
+            np.any(component[:, 0]) or np.any(component[:, -1])
+        ):
+            continue
+        surrounding = (
+            cv2.dilate(component.astype(np.uint8), kernel).astype(bool) &
+            ~component)
+        if np.all(free[surrounding]):
+            cleaned[component] = True
+    return cleaned

@@ -20,6 +20,8 @@ trajectory_planner:
     centerline_smoothing: 0.25
     vehicle_width: 0.30
     wall_margin: 0.05
+    # Fill only occupied components this small and fully enclosed by free space.
+    max_occupied_speckle_area: 1
 
     # Velocity and acceleration limits (m/s and m/s^2).
     max_speed: 6.0

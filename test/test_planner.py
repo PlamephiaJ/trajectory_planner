@@ -97,6 +97,35 @@ def test_explicit_map_image_overrides_yaml_image(tmp_path):
     assert map_data.image.shape == (220, 280)
 
 
+def test_map_loader_filters_only_enclosed_occupied_speckles(tmp_path):
+    image = np.full((30, 30), 255, dtype=np.uint8)
+    image[10, 10] = 0
+    image[15, 5:8] = 0
+    image[20, 20] = 205
+    image[20, 21] = 0
+    image_path = tmp_path / 'speckles.pgm'
+    assert cv2.imwrite(str(image_path), image)
+    yaml_path = tmp_path / 'speckles.yaml'
+    yaml_path.write_text(yaml.safe_dump({
+        'image': image_path.name,
+        'mode': 'trinary',
+        'resolution': 0.05,
+        'origin': [0.0, 0.0, 0.0],
+        'negate': 0,
+        'occupied_thresh': 0.65,
+        'free_thresh': 0.196,
+    }), encoding='utf-8')
+
+    unfiltered = load_map(yaml_path)
+    filtered = load_map(yaml_path, max_occupied_speckle_area=1)
+
+    assert not unfiltered.free[10, 10]
+    assert filtered.free[10, 10]
+    assert not filtered.free[15, 5]
+    assert not filtered.free[20, 20]
+    assert not filtered.free[20, 21]
+
+
 def test_config_validation():
     invalid = [
         PlannerConfig(min_speed=-0.1),
@@ -109,6 +138,7 @@ def test_config_validation():
         PlannerConfig(direction='left'),
         PlannerConfig(direction='clockwise', reverse=True),
         PlannerConfig(direction='counterclockwise', seed_yaw=0.0),
+        PlannerConfig(max_occupied_speckle_area=-1),
     ]
     for config in invalid:
         try:

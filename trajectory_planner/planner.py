@@ -32,7 +32,8 @@ def plan_trajectory(
     config = config or PlannerConfig()
     config.validate()
 
-    map_data = load_map(map_yaml, map_image)
+    map_data = load_map(
+        map_yaml, map_image, config.max_occupied_speckle_area)
     track_mask, centerline = build_centerline(map_data, config)
     _, _, normals, _ = curve_geometry(centerline)
     left_width, right_width = measure_track_widths(

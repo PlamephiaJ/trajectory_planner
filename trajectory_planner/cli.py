@@ -21,6 +21,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument('--centerline-smoothing', type=float, default=0.25)
     parser.add_argument('--vehicle-width', type=float, default=0.30)
     parser.add_argument('--wall-margin', type=float, default=0.05)
+    parser.add_argument('--max-occupied-speckle-area', type=int, default=1)
     parser.add_argument('--max-speed', type=float, default=6.0)
     parser.add_argument('--min-speed', type=float, default=0.5)
     parser.add_argument('--max-lateral-accel', type=float, default=7.0)
@@ -57,6 +58,7 @@ def main(args=None) -> None:
         centerline_smoothing=values.centerline_smoothing,
         vehicle_width=values.vehicle_width,
         wall_margin=values.wall_margin,
+        max_occupied_speckle_area=values.max_occupied_speckle_area,
         max_speed=values.max_speed,
         min_speed=values.min_speed,
         max_lateral_accel=values.max_lateral_accel,

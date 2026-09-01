@@ -25,6 +25,7 @@ PARAMETER_DEFAULTS = {
     'centerline_smoothing': '0.25',
     'vehicle_width': '0.30',
     'wall_margin': '0.05',
+    'max_occupied_speckle_area': '1',
     'max_speed': '6.0',
     'min_speed': '0.5',
     'max_lateral_accel': '7.0',

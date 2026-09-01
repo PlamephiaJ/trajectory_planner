@@ -68,3 +68,8 @@ python3 -m trajectory_planner map.yaml \
 ```
 
 默认 CSV 只有 `x,y,speed`；增加 `--detailed-csv` 可输出全部诊断字段。
+
+地图加载时默认过滤被自由空间完全包围的单像素占用噪点；可通过
+`max_occupied_speckle_area`（ROS）或 `--max-occupied-speckle-area`（离线命令）
+设置最大噪点面积，单位为像素。设为 `0` 可禁用过滤。未知区域和与墙体相连的
+占用像素不会被修改。
