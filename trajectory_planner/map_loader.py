@@ -76,8 +76,21 @@ def load_map(
     if mode == 'trinary':
         free &= np.abs(image.astype(np.int16) - 205) > 1
 
+    original_free = free
     free = _remove_enclosed_occupied_speckles(
         free, occupied, max_occupied_speckle_area)
+    removed_speckles = free & ~original_free
+    removed_speckle_count = int(np.count_nonzero(removed_speckles))
+    if removed_speckle_count:
+        # Keep the raster, planning mask, preview, and published occupancy grid
+        # consistent.  Use an unambiguously free pixel value for every ROS map
+        # mode and negate setting.
+        image = image.copy()
+        if mode == 'raw':
+            free_pixel_value = 255 if negate else 0
+        else:
+            free_pixel_value = 0 if negate else 255
+        image[removed_speckles] = free_pixel_value
 
     if np.count_nonzero(free) < 100:
         raise PlanningError('Map contains too few free cells')
@@ -90,6 +103,7 @@ def load_map(
         origin_x=float(origin[0]),
         origin_y=float(origin[1]),
         origin_yaw=float(origin[2]),
+        removed_occupied_speckle_cells=removed_speckle_count,
     )
 
 

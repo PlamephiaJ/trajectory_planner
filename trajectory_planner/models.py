@@ -17,6 +17,7 @@ class MapData:
     origin_x: float
     origin_y: float
     origin_yaw: float
+    removed_occupied_speckle_cells: int = 0
 
     def pixel_to_world(self, rows: np.ndarray, cols: np.ndarray) -> np.ndarray:
         local_x = (np.asarray(cols, dtype=float) + 0.5) * self.resolution

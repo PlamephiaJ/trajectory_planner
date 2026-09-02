@@ -5,7 +5,12 @@ from pathlib import Path
 
 from .config import PlannerConfig
 from .exceptions import PlanningError
-from .exporters import save_compact_csv, save_detailed_csv, save_preview
+from .exporters import (
+    save_clean_map,
+    save_compact_csv,
+    save_detailed_csv,
+    save_preview,
+)
 from .planner import plan_trajectory
 
 
@@ -16,12 +21,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument('-i', '--map-image', type=Path)
     parser.add_argument('-o', '--output', type=Path)
     parser.add_argument('--preview', type=Path)
+    parser.add_argument(
+        '--clean-map-yaml', type=Path,
+        help='clean ROS map YAML (default: <map>_clean.yaml)')
+    parser.add_argument(
+        '--clean-map-image', type=Path,
+        help='clean map raster (default: clean YAML path with .pgm)')
     parser.add_argument('--detailed-csv', action='store_true')
     parser.add_argument('--spacing', type=float, default=0.20)
     parser.add_argument('--centerline-smoothing', type=float, default=0.25)
     parser.add_argument('--vehicle-width', type=float, default=0.30)
     parser.add_argument('--wall-margin', type=float, default=0.05)
-    parser.add_argument('--max-occupied-speckle-area', type=int, default=1)
+    parser.add_argument('--max-occupied-speckle-area', type=int, default=2)
     parser.add_argument('--max-speed', type=float, default=6.0)
     parser.add_argument('--min-speed', type=float, default=0.5)
     parser.add_argument('--max-lateral-accel', type=float, default=7.0)
@@ -81,6 +92,10 @@ def main(args=None) -> None:
     )
     try:
         trajectory = plan_trajectory(map_yaml, config, values.map_image)
+        clean_yaml = values.clean_map_yaml or map_yaml.with_name(
+            f'{map_yaml.stem}_clean.yaml')
+        clean_yaml_path, clean_image_path = save_clean_map(
+            trajectory.map_data, clean_yaml, values.clean_map_image)
         csv_path = (
             save_detailed_csv(trajectory, output)
             if values.detailed_csv else save_compact_csv(trajectory, output))
@@ -93,6 +108,11 @@ def main(args=None) -> None:
     print(f'length: {trajectory.length:.2f} m')
     print(f'estimated lap time: {trajectory.estimated_lap_time:.2f} s')
     print(f'direction: {trajectory.direction}')
+    print(
+        'removed occupied speckle cells: '
+        f'{trajectory.map_data.removed_occupied_speckle_cells}')
+    print(f'clean map YAML: {clean_yaml_path}')
+    print(f'clean map image: {clean_image_path}')
     print(f'CSV: {csv_path}')
     if preview_path:
         print(f'preview: {preview_path}')

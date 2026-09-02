@@ -1,7 +1,8 @@
 # trajectory_planner
 
-标准 ROS 2 `ament_python` 包：从 ROS PGM/YAML 地图生成闭环赛道轨迹、速度曲线、
-CSV、预览图以及可直接在 RViz2 查看的一组 transient-local topic。
+标准 ROS 2 `ament_python` 包：先清理 ROS PGM/YAML 地图中被自由空间包围的占用
+噪点，再从同一份 clean map 生成闭环赛道轨迹、速度曲线、CSV、预览图以及可直接
+在 RViz2 查看的一组 transient-local topic。
 
 ## 目录
 
@@ -42,6 +43,8 @@ colcon build --symlink-install --packages-select trajectory_planner
 source install/setup.bash
 ros2 launch trajectory_planner trajectory_planner.launch.py \
   map_yaml:=$PWD/map_20260827.yaml \
+  clean_map_yaml:=$PWD/map_20260827_clean.yaml \
+  clean_map_image:=$PWD/map_20260827_clean.pgm \
   output_csv:=$PWD/map_20260827_trajectory.csv \
   preview_png:=$PWD/map_20260827_trajectory_preview.png
 ```
@@ -64,12 +67,18 @@ ros2 launch trajectory_planner trajectory_planner.launch.py \
 ```bash
 python3 -m trajectory_planner map.yaml \
   --map-image map.pgm --output trajectory.csv --preview preview.png \
+  --clean-map-yaml map_clean.yaml --clean-map-image map_clean.pgm \
   --direction counterclockwise
 ```
 
 默认 CSV 只有 `x,y,speed`；增加 `--detailed-csv` 可输出全部诊断字段。
 
-地图加载时默认过滤被自由空间完全包围的单像素占用噪点；可通过
+地图加载时默认过滤被自由空间完全包围、面积不超过 2 像素的占用噪点；可通过
 `max_occupied_speckle_area`（ROS）或 `--max-occupied-speckle-area`（离线命令）
 设置最大噪点面积，单位为像素。设为 `0` 可禁用过滤。未知区域和与墙体相连的
-占用像素不会被修改。
+占用像素不会被修改。清理发生在中心线提取和轨迹规划之前，预览图、ROS `/map`
+和规划器使用的是相同的 clean raster/free-space mask。
+
+每次 ROS 或离线运行都会输出配套的 clean PGM/YAML。未显式指定输出路径时，默认
+写到原地图旁边的 `<原地图名>_clean.pgm` 和 `<原地图名>_clean.yaml`；原始 SLAM
+地图不会被覆盖。

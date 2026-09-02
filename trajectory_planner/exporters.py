@@ -1,12 +1,51 @@
 """CSV and image exporters for planned trajectories."""
 
 import csv
+import os
 from pathlib import Path
+from typing import Optional
 
 import cv2
 import numpy as np
+import yaml
 
-from .models import Trajectory
+from .models import MapData, Trajectory
+
+
+def save_clean_map(
+    map_data: MapData,
+    output_yaml: Path,
+    output_image: Optional[Path] = None,
+) -> tuple[Path, Path]:
+    """Write the filtered raster and a matching ROS map YAML.
+
+    The source files are deliberately protected from accidental overwrite so
+    callers always retain the original SLAM map.
+    """
+    output_yaml = Path(output_yaml).expanduser().resolve()
+    output_image = (
+        Path(output_image).expanduser().resolve()
+        if output_image is not None else output_yaml.with_suffix('.pgm'))
+    if output_yaml == map_data.yaml_path:
+        raise ValueError('Clean map YAML must not overwrite the source YAML')
+    if output_image == map_data.image_path:
+        raise ValueError('Clean map image must not overwrite the source image')
+    if output_image == output_yaml:
+        raise ValueError('Clean map YAML and image paths must be different')
+
+    with map_data.yaml_path.open('r', encoding='utf-8') as stream:
+        metadata = yaml.safe_load(stream)
+    if not isinstance(metadata, dict):
+        raise ValueError(f'Invalid ROS map YAML: {map_data.yaml_path}')
+
+    output_yaml.parent.mkdir(parents=True, exist_ok=True)
+    output_image.parent.mkdir(parents=True, exist_ok=True)
+    if not cv2.imwrite(str(output_image), map_data.image):
+        raise OSError(f'Unable to write clean map image: {output_image}')
+    metadata['image'] = os.path.relpath(output_image, output_yaml.parent)
+    with output_yaml.open('w', encoding='utf-8') as stream:
+        yaml.safe_dump(metadata, stream, sort_keys=False)
+    return output_yaml, output_image
 
 
 def save_compact_csv(trajectory: Trajectory, output_path: Path) -> Path:

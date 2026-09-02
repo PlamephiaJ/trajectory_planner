@@ -13,7 +13,7 @@ class PlannerConfig:
     centerline_smoothing: float = 0.25
     vehicle_width: float = 0.30
     wall_margin: float = 0.05
-    max_occupied_speckle_area: int = 1
+    max_occupied_speckle_area: int = 2
     max_speed: float = 8.0
     min_speed: float = 0.5
     max_lateral_accel: float = 7.0

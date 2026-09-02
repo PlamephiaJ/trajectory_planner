@@ -6,7 +6,7 @@ import yaml
 
 from trajectory_planner import (
     MapData, PlannerConfig, plan_trajectory,
-    save_compact_csv, save_detailed_csv,
+    save_clean_map, save_compact_csv, save_detailed_csv,
 )
 from trajectory_planner.centerline import _orient_and_rotate_cycle
 from trajectory_planner.geometry import minimum_dense_clearance
@@ -121,9 +121,43 @@ def test_map_loader_filters_only_enclosed_occupied_speckles(tmp_path):
 
     assert not unfiltered.free[10, 10]
     assert filtered.free[10, 10]
+    assert filtered.image[10, 10] == 255
+    assert filtered.removed_occupied_speckle_cells == 1
     assert not filtered.free[15, 5]
     assert not filtered.free[20, 20]
     assert not filtered.free[20, 21]
+
+
+def test_clean_map_export_is_reloadable_and_preserves_source(tmp_path):
+    image = np.full((30, 30), 255, dtype=np.uint8)
+    image[10, 10:12] = 0
+    source_image = tmp_path / 'noisy.pgm'
+    assert cv2.imwrite(str(source_image), image)
+    source_yaml = tmp_path / 'noisy.yaml'
+    source_yaml.write_text(yaml.safe_dump({
+        'image': source_image.name,
+        'mode': 'trinary',
+        'resolution': 0.05,
+        'origin': [0.0, 0.0, 0.0],
+        'negate': 0,
+        'occupied_thresh': 0.65,
+        'free_thresh': 0.196,
+    }), encoding='utf-8')
+
+    map_data = load_map(source_yaml, max_occupied_speckle_area=2)
+    clean_yaml, clean_image = save_clean_map(
+        map_data, tmp_path / 'clean' / 'map_clean.yaml')
+    reloaded = load_map(clean_yaml, max_occupied_speckle_area=0)
+
+    assert clean_yaml.is_file()
+    assert clean_image.is_file()
+    assert map_data.removed_occupied_speckle_cells == 2
+    assert np.all(reloaded.free[10, 10:12])
+    assert np.all(reloaded.image[10, 10:12] == 255)
+    original = cv2.imread(str(source_image), cv2.IMREAD_GRAYSCALE)
+    assert np.all(original[10, 10:12] == 0)
+    clean_metadata = yaml.safe_load(clean_yaml.read_text(encoding='utf-8'))
+    assert clean_metadata['image'] == 'map_clean.pgm'
 
 
 def test_config_validation():
