@@ -287,7 +287,23 @@ def build_centerline(map_data: MapData, config: PlannerConfig):
     """Return the selected track mask and oriented, resampled centerline."""
     track_mask = _select_track_component(
         map_data, config.seed_x, config.seed_y)
-    skeleton = _skeletonize_component(track_mask)
+    # Thin free-space spurs and loops in SLAM maps can be connected to the
+    # actual track.  Skeletonizing the raw component lets those artifacts
+    # participate in cycle selection, which can pull the centerline into a
+    # passage that is much narrower than the vehicle.  Extract topology from
+    # the traversable core instead, while retaining the original component for
+    # track-width measurement and clearance validation.
+    clearance = cv2.distanceTransform(
+        track_mask.astype(np.uint8), cv2.DIST_L2, 5)
+    clearance *= map_data.resolution
+    traversable_core = track_mask & (
+        clearance + 0.5 * map_data.resolution >= config.required_clearance)
+    if np.count_nonzero(traversable_core) < 100:
+        raise PlanningError(
+            'Track contains too little free space at the required vehicle '
+            'clearance. Check the map or vehicle dimensions.')
+
+    skeleton = _skeletonize_component(traversable_core)
     coordinates, adjacency = _pixel_graph(skeleton)
     active = _prune_leaves(adjacency)
     cycle_pixels = _extract_longest_cycle(coordinates, adjacency, active)
