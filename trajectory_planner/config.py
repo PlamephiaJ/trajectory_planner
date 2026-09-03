@@ -30,6 +30,10 @@ class PlannerConfig:
     length_weight: float = 0.04
     offset_smooth_weight: float = 0.15
     center_weight: float = 0.001
+    corner_lookahead_distance: float = 1.50
+    corner_anticipation_weight: float = 0.25
+    corner_anticipation_fraction: float = 0.65
+    corner_trigger_fraction: float = 0.55
     corridor_fraction: float = 0.92
     max_optimization_iterations: int = 100
     max_velocity_iterations: int = 100
@@ -77,6 +81,14 @@ class PlannerConfig:
             raise ValueError('wall_margin cannot be negative')
         if self.min_turning_radius < 0.0:
             raise ValueError('min_turning_radius cannot be negative')
+        if self.corner_lookahead_distance < 0.0:
+            raise ValueError('corner_lookahead_distance cannot be negative')
+        if self.corner_anticipation_weight < 0.0:
+            raise ValueError('corner_anticipation_weight cannot be negative')
+        if not 0.0 <= self.corner_anticipation_fraction <= 1.0:
+            raise ValueError('corner_anticipation_fraction must be in [0, 1]')
+        if not 0.0 < self.corner_trigger_fraction < 1.0:
+            raise ValueError('corner_trigger_fraction must be in (0, 1)')
         if (
             self.max_occupied_speckle_area < 0 or
             int(self.max_occupied_speckle_area) != self.max_occupied_speckle_area
