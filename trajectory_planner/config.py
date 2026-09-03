@@ -37,9 +37,9 @@ class PlannerConfig:
     corridor_fraction: float = 0.92
     max_optimization_iterations: int = 100
     max_velocity_iterations: int = 100
-    time_optimization_modes: int = 8
-    max_time_optimization_iterations: int = 25
-    time_optimization_passes: int = 2
+    time_optimization_modes: int = 12
+    max_time_optimization_iterations: int = 40
+    time_optimization_passes: int = 3
     time_optimization_step: float = 0.12
     time_offset_regularization: float = 0.015
     seed_x: Optional[float] = None

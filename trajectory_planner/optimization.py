@@ -271,7 +271,14 @@ def refine_minimum_time_line(
         turning_penalty = 0.0
         if config.min_turning_radius > 0.0:
             excess = np.maximum(np.abs(curvature) - config.max_curvature, 0.0)
-            turning_penalty = 1000.0 * float(np.mean(excess * excess))
+            # The mean term discourages broad infeasible regions while the
+            # peak term prevents a handful of sharp samples from being diluted
+            # by averaging across the full lap.
+            mean_excess_sq = float(np.mean(excess * excess))
+            peak_excess = float(np.max(excess))
+            turning_penalty = (
+                1000.0 * mean_excess_sq +
+                5000.0 * peak_excess * peak_excess)
         return lap_time + regularization + turning_penalty
 
     zero = np.zeros(config.time_optimization_modes, dtype=float)
