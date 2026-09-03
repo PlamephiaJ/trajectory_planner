@@ -11,6 +11,7 @@ from trajectory_planner import (
 from trajectory_planner.centerline import _orient_and_rotate_cycle
 from trajectory_planner.geometry import minimum_dense_clearance
 from trajectory_planner.map_loader import load_map
+from trajectory_planner.planner import _turning_radius_violation
 from trajectory_planner.velocity import available_longitudinal_accel
 
 
@@ -173,6 +174,7 @@ def test_config_validation():
         PlannerConfig(direction='clockwise', reverse=True),
         PlannerConfig(direction='counterclockwise', seed_yaw=0.0),
         PlannerConfig(max_occupied_speckle_area=-1),
+        PlannerConfig(min_turning_radius=-0.1),
     ]
     for config in invalid:
         try:
@@ -180,6 +182,17 @@ def test_config_validation():
         except ValueError:
             continue
         raise AssertionError(f'Invalid configuration was accepted: {config}')
+
+
+def test_min_turning_radius_sets_curvature_limit():
+    config = PlannerConfig(min_turning_radius=0.90)
+    assert np.isclose(config.max_curvature, 1.0 / 0.90)
+    assert _turning_radius_violation(
+        np.array([0.2, -0.8, 1.0]), config) == 0.0
+    assert _turning_radius_violation(
+        np.array([0.2, 1.2]), config) > 0.0
+    disabled = PlannerConfig(min_turning_radius=0.0)
+    assert np.isinf(disabled.max_curvature)
 
 
 def test_explicit_trajectory_direction():
