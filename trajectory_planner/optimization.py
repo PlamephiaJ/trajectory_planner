@@ -201,7 +201,14 @@ def refine_minimum_time_line(
         smooth_change = np.roll(change, -1) - change
         regularization = config.time_offset_regularization * float(
             np.mean(change * change) + 4.0 * np.mean(smooth_change * smooth_change))
-        return lap_time + regularization
+        turning_penalty = 0.0
+        if config.min_turning_radius > 0.0:
+            excess = np.maximum(np.abs(curvature) - config.max_curvature, 0.0)
+            # Make a kinematically infeasible line much more expensive than
+            # any realistic lap-time improvement while retaining a smooth
+            # objective for Powell optimization.
+            turning_penalty = 1000.0 * float(np.mean(excess * excess))
+        return lap_time + regularization + turning_penalty
 
     zero = np.zeros(config.time_optimization_modes, dtype=float)
     result = minimize(

@@ -53,6 +53,7 @@ def plan_trajectory(
     _validate_dense_clearance(
         map_data, track_mask, racing_line, point_clearance, config)
     yaw, curvature, _, segment_length = curve_geometry(racing_line)
+    _validate_turning_radius(curvature, config)
     speed = velocity_profile(curvature, segment_length, config)
     return Trajectory(
         x=racing_line[:, 0],
@@ -97,6 +98,7 @@ def _refine_for_lap_time(
 ):
     baseline = centerline + offsets[:, None] * normals
     _, curvature, _, segments = curve_geometry(baseline)
+    best_violation = _turning_radius_violation(curvature, config)
     best_time = profile_lap_time(
         velocity_profile(curvature, segments, config), segments)
     for _ in range(config.time_optimization_passes):
@@ -107,13 +109,50 @@ def _refine_for_lap_time(
             config.required_clearance)
         line = centerline + candidate[:, None] * normals
         _, curvature, _, segments = curve_geometry(line)
+        candidate_violation = _turning_radius_violation(curvature, config)
         candidate_time = profile_lap_time(
             velocity_profile(curvature, segments, config), segments)
-        if candidate_time + 1.0e-4 >= best_time:
-            break
+        if best_violation > 1.0e-6:
+            # Until the line is feasible, prioritize reducing kinematic
+            # violation over improving lap time.
+            if candidate_violation + 1.0e-6 >= best_violation:
+                break
+        else:
+            if candidate_violation > 1.0e-6:
+                break
+            if candidate_time + 1.0e-4 >= best_time:
+                break
         offsets, point_clearance = candidate, clearance
+        best_violation = candidate_violation
         best_time = candidate_time
     return offsets, point_clearance
+
+
+def _turning_radius_violation(
+    curvature: np.ndarray,
+    config: PlannerConfig,
+) -> float:
+    if config.min_turning_radius <= 0.0:
+        return 0.0
+    return max(
+        0.0, float(np.max(np.abs(curvature))) - config.max_curvature)
+
+
+def _validate_turning_radius(
+    curvature: np.ndarray,
+    config: PlannerConfig,
+) -> None:
+    violation = _turning_radius_violation(curvature, config)
+    if violation <= 1.0e-6:
+        return
+    peak_curvature = float(np.max(np.abs(curvature)))
+    achieved_radius = (
+        1.0 / peak_curvature if peak_curvature > 0.0 else float('inf'))
+    raise PlanningError(
+        f'Trajectory requires a turning radius of {achieved_radius:.3f} m, '
+        f'but min_turning_radius is {config.min_turning_radius:.3f} m '
+        f'(peak curvature {peak_curvature:.3f} 1/m; allowed '
+        f'{config.max_curvature:.3f} 1/m).')
 
 
 def _validate_dense_clearance(

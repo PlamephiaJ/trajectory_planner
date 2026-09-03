@@ -13,6 +13,7 @@ class PlannerConfig:
     centerline_smoothing: float = 0.25
     vehicle_width: float = 0.30
     wall_margin: float = 0.05
+    min_turning_radius: float = 0.0
     max_occupied_speckle_area: int = 2
     max_speed: float = 8.0
     min_speed: float = 0.5
@@ -47,6 +48,13 @@ class PlannerConfig:
     def required_clearance(self) -> float:
         return 0.5 * self.vehicle_width + self.wall_margin
 
+    @property
+    def max_curvature(self) -> float:
+        """Maximum kinematically feasible curvature in 1/m."""
+        if self.min_turning_radius <= 0.0:
+            return math.inf
+        return 1.0 / self.min_turning_radius
+
     def validate(self) -> None:
         positive = {
             'spacing': self.spacing,
@@ -67,6 +75,8 @@ class PlannerConfig:
             raise ValueError('Parameters must be positive: ' + ', '.join(bad))
         if self.wall_margin < 0.0:
             raise ValueError('wall_margin cannot be negative')
+        if self.min_turning_radius < 0.0:
+            raise ValueError('min_turning_radius cannot be negative')
         if (
             self.max_occupied_speckle_area < 0 or
             int(self.max_occupied_speckle_area) != self.max_occupied_speckle_area
