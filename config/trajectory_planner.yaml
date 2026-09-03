@@ -56,9 +56,11 @@ trajectory_planner:
     corridor_fraction: 0.92
     max_optimization_iterations: 100
     max_velocity_iterations: 100
-    time_optimization_modes: 8
-    max_time_optimization_iterations: 25
-    time_optimization_passes: 2
+    # More Fourier modes/passes give the minimum-time stage enough local
+    # freedom to reduce isolated curvature peaks in tight corners.
+    time_optimization_modes: 12
+    max_time_optimization_iterations: 40
+    time_optimization_passes: 3
     time_optimization_step: 0.12
     time_offset_regularization: 0.015
 
