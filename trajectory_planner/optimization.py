@@ -31,6 +31,65 @@ def _append_sparse_row(
     rhs.append(float(target))
 
 
+def _corner_anticipation_targets(
+    centerline: np.ndarray,
+    left_width: np.ndarray,
+    right_width: np.ndarray,
+    lower: np.ndarray,
+    upper: np.ndarray,
+    mean_spacing: float,
+    config: PlannerConfig,
+) -> np.ndarray:
+    """Return outside-line targets on the approach to tight corners.
+
+    Positive curvature is a left turn because curve_geometry uses the left
+    normal. The outside of a left turn is therefore a negative offset, while
+    the outside of a right turn is a positive offset. The guide is active only
+    while a sharper curvature peak lies ahead, so it naturally fades near the
+    apex instead of holding the car outside through the whole corner.
+    """
+    count = len(centerline)
+    targets = np.zeros(count, dtype=float)
+    if (
+        config.min_turning_radius <= 0.0 or
+        config.corner_lookahead_distance <= 0.0 or
+        config.corner_anticipation_weight <= 0.0 or
+        config.corner_anticipation_fraction <= 0.0
+    ):
+        return targets
+
+    _, curvature, _, _ = curve_geometry(centerline)
+    lookahead_steps = max(
+        1, int(math.ceil(config.corner_lookahead_distance /
+                         max(mean_spacing, 1.0e-6))))
+    trigger = config.corner_trigger_fraction * config.max_curvature
+    curvature_span = max(config.max_curvature - trigger, 1.0e-6)
+    approach_span = max(0.25 * config.max_curvature, 1.0e-6)
+
+    for index in range(count):
+        future_indices = (
+            index + np.arange(1, lookahead_steps + 1, dtype=int)) % count
+        future_curvature = curvature[future_indices]
+        peak_local = int(np.argmax(np.abs(future_curvature)))
+        peak_curvature = float(future_curvature[peak_local])
+        peak_abs = abs(peak_curvature)
+        current_abs = abs(float(curvature[index]))
+
+        severity = np.clip((peak_abs - trigger) / curvature_span, 0.0, 1.0)
+        approach = np.clip(
+            (peak_abs - current_abs) / approach_span, 0.0, 1.0)
+        strength = float(severity * approach)
+        if strength <= 0.0:
+            continue
+
+        # Positive curvature means a left turn: prepare on the right/outside.
+        outside_bound = lower[index] if peak_curvature > 0.0 else upper[index]
+        targets[index] = (
+            config.corner_anticipation_fraction * strength * outside_bound)
+
+    return targets
+
+
 def optimize_racing_line(
     centerline: np.ndarray,
     normals: np.ndarray,
@@ -48,6 +107,10 @@ def optimize_racing_line(
     lower[fixed] = -1.0e-9
     upper[fixed] = 1.0e-9
 
+    anticipation_targets = _corner_anticipation_targets(
+        centerline, left_width, right_width, lower, upper,
+        mean_spacing, config)
+
     rows: List[int] = []
     cols: List[int] = []
     values: List[float] = []
@@ -56,6 +119,7 @@ def optimize_racing_line(
     length_scale = math.sqrt(config.length_weight) / max(mean_spacing, 1.0e-6)
     smooth_scale = math.sqrt(config.offset_smooth_weight) / max(mean_spacing, 1.0e-6)
     center_scale = math.sqrt(config.center_weight)
+    anticipation_scale = math.sqrt(config.corner_anticipation_weight)
     curvature_smooth_scale = (
         math.sqrt(config.curvature_smooth_weight) /
         max(mean_spacing ** 3, 1.0e-6))
@@ -88,6 +152,11 @@ def optimize_racing_line(
             [(index, -smooth_scale), (following, smooth_scale)], 0.0)
         _append_sparse_row(
             rows, cols, values, rhs, [(index, center_scale)], 0.0)
+        if anticipation_scale > 0.0 and anticipation_targets[index] != 0.0:
+            _append_sparse_row(
+                rows, cols, values, rhs,
+                [(index, anticipation_scale)],
+                anticipation_scale * anticipation_targets[index])
         # Penalize changes in the second difference as well as its magnitude.
         # This suppresses isolated curvature spikes and produces a wider,
         # progressively turning racing line through corner entry and exit.
@@ -180,8 +249,6 @@ def refine_minimum_time_line(
         harmonic += 1
     basis = np.column_stack(columns)
     basis /= np.maximum(np.linalg.norm(basis, axis=0, keepdims=True), 1.0e-9)
-    # Normalize each mode by sqrt(N), making coefficient bounds represent an
-    # intuitive approximate lateral displacement in metres.
     basis *= math.sqrt(float(count))
 
     clearance = config.required_clearance
@@ -204,9 +271,6 @@ def refine_minimum_time_line(
         turning_penalty = 0.0
         if config.min_turning_radius > 0.0:
             excess = np.maximum(np.abs(curvature) - config.max_curvature, 0.0)
-            # Make a kinematically infeasible line much more expensive than
-            # any realistic lap-time improvement while retaining a smooth
-            # objective for Powell optimization.
             turning_penalty = 1000.0 * float(np.mean(excess * excess))
         return lap_time + regularization + turning_penalty
 
