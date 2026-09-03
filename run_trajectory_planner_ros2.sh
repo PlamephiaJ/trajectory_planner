@@ -4,13 +4,13 @@ set -e
 
 # ======================== 所有参数都在这里 ========================
 
-# 当前脚本所在目录：
-# /home/plamephia/workspace/sim_ws/map_process
-MAP_PROCESS_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# 始终基于脚本自身的位置解析路径，不受调用脚本时所在目录的影响。
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
-# ROS2 workspace：
-# /home/plamephia/workspace/sim_ws
-WORKSPACE_DIR="$(cd -- "${MAP_PROCESS_DIR}/.." && pwd)"
+# 脚本位于 ${WORKSPACE_DIR}/src/trajectory_planner，地图位于
+# ${WORKSPACE_DIR}/map_process。
+WORKSPACE_DIR="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
+MAP_PROCESS_DIR="${WORKSPACE_DIR}/map_process"
 
 ROS_SETUP="/opt/ros/humble/setup.bash"
 
@@ -28,14 +28,15 @@ DIRECTION=clockwise # 可选值：counterclockwise、clockwise
 MAP_NAME="${1:-map_202609032}"
 MAP_DIR="${MAP_PROCESS_DIR}/${MAP_NAME}"
 RUN_TIMESTAMP="$(date '+%Y%m%d_%H%M%S')"
+RUN_DIR="${MAP_DIR}/${RUN_TIMESTAMP}"
 
-# 输入、输出和显示。轨迹结果保存在对应地图目录中。
+# 输入、输出和显示。每次运行的产物保存在独立的时间戳目录中。
 MAP_YAML="${MAP_DIR}/${MAP_NAME}.yaml"
-CLEAN_MAP_YAML="${MAP_DIR}/${MAP_NAME}_clean.yaml"
-CLEAN_MAP_IMAGE="${MAP_DIR}/${MAP_NAME}_clean.pgm"
-OUTPUT_CSV="${MAP_DIR}/${MAP_NAME}_${DIRECTION}_${RUN_TIMESTAMP}.csv"
-PREVIEW_PNG="${MAP_DIR}/${MAP_NAME}_${DIRECTION}_preview_${RUN_TIMESTAMP}.png"
-PARAMS_YAML="${MAP_DIR}/${MAP_NAME}_${DIRECTION}_${RUN_TIMESTAMP}_params.yaml"
+CLEAN_MAP_YAML="${RUN_DIR}/${MAP_NAME}_clean.yaml"
+CLEAN_MAP_IMAGE="${RUN_DIR}/${MAP_NAME}_clean.pgm"
+OUTPUT_CSV="${RUN_DIR}/${MAP_NAME}_${DIRECTION}.csv"
+PREVIEW_PNG="${RUN_DIR}/${MAP_NAME}_${DIRECTION}_preview.png"
+PARAMS_YAML="${RUN_DIR}/${MAP_NAME}_${DIRECTION}_params.yaml"
 DETAILED_CSV=false
 OPEN_RVIZ=true
 USE_SIM_TIME=false
@@ -54,6 +55,8 @@ SPACING=0.20
 CENTERLINE_SMOOTHING=0.25
 VEHICLE_WIDTH=0.30
 WALL_MARGIN=0.05
+# 车辆中心的最小可行转弯半径，单位 m；0 表示禁用该约束。
+MIN_TURNING_RADIUS=0.90
 # 仅过滤被自由空间完全包围的占用噪点，单位为像素；0 表示禁用。
 # map_1788291473 的赛道内残留由 1 至 2 像素的连通块组成。
 MAX_OCCUPIED_SPECKLE_AREA=20
@@ -105,7 +108,11 @@ colcon build \
 
 source "${WORKSPACE_DIR}/install/setup.bash"
 
-# 保存本次运行所使用的参数。文件名与 CSV 共用同一个时间戳，方便一一对应。
+# 后续参数保存和 ROS2 launch 均在 map_process 目录中执行。
+cd "$MAP_PROCESS_DIR"
+mkdir -p "$RUN_DIR"
+
+# 保存本次运行所使用的参数。参数和其他产物位于同一个时间戳目录中。
 # YAML 字符串使用单引号，并把字符串中的单引号转义为两个单引号。
 yaml_quote() {
     local value="${1//\'/\'\'}"
@@ -137,6 +144,7 @@ yaml_quote() {
     printf "  centerline_smoothing: %s\n" "$CENTERLINE_SMOOTHING"
     printf "  vehicle_width: %s\n" "$VEHICLE_WIDTH"
     printf "  wall_margin: %s\n" "$WALL_MARGIN"
+    printf "  min_turning_radius: %s\n" "$MIN_TURNING_RADIUS"
     printf "  max_occupied_speckle_area: %s\n" "$MAX_OCCUPIED_SPECKLE_AREA"
     printf "  max_speed: %s\n" "$MAX_SPEED"
     printf "  min_speed: %s\n" "$MIN_SPEED"
@@ -190,6 +198,7 @@ exec ros2 launch trajectory_planner trajectory_planner.launch.py \
     centerline_smoothing:="$CENTERLINE_SMOOTHING" \
     vehicle_width:="$VEHICLE_WIDTH" \
     wall_margin:="$WALL_MARGIN" \
+    min_turning_radius:="$MIN_TURNING_RADIUS" \
     max_occupied_speckle_area:="$MAX_OCCUPIED_SPECKLE_AREA" \
     max_speed:="$MAX_SPEED" \
     min_speed:="$MIN_SPEED" \
