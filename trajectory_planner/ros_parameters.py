@@ -26,6 +26,7 @@ PLANNER_DEFAULTS = {
     'centerline_smoothing': 0.25,
     'vehicle_width': 0.30,
     'wall_margin': 0.05,
+    'min_turning_radius': 0.0,
     'max_occupied_speckle_area': 2,
     'max_speed': 6.0,
     'min_speed': 0.5,
