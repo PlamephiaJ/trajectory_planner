@@ -79,6 +79,11 @@ CURVATURE_SMOOTH_WEIGHT=0.35
 LENGTH_WEIGHT=0.04
 OFFSET_SMOOTH_WEIGHT=0.15
 CENTER_WEIGHT=0.001
+# 弯道预判：前视距离、引导权重、外侧偏移比例和触发曲率比例。
+CORNER_LOOKAHEAD_DISTANCE=1.50
+CORNER_ANTICIPATION_WEIGHT=0.25
+CORNER_ANTICIPATION_FRACTION=0.65
+CORNER_TRIGGER_FRACTION=0.55
 CORRIDOR_FRACTION=0.92
 MAX_OPTIMIZATION_ITERATIONS=100
 
@@ -161,6 +166,10 @@ yaml_quote() {
     printf "  length_weight: %s\n" "$LENGTH_WEIGHT"
     printf "  offset_smooth_weight: %s\n" "$OFFSET_SMOOTH_WEIGHT"
     printf "  center_weight: %s\n" "$CENTER_WEIGHT"
+    printf "  corner_lookahead_distance: %s\n" "$CORNER_LOOKAHEAD_DISTANCE"
+    printf "  corner_anticipation_weight: %s\n" "$CORNER_ANTICIPATION_WEIGHT"
+    printf "  corner_anticipation_fraction: %s\n" "$CORNER_ANTICIPATION_FRACTION"
+    printf "  corner_trigger_fraction: %s\n" "$CORNER_TRIGGER_FRACTION"
     printf "  corridor_fraction: %s\n" "$CORRIDOR_FRACTION"
     printf "  max_optimization_iterations: %s\n" "$MAX_OPTIMIZATION_ITERATIONS"
     printf "  max_velocity_iterations: %s\n" "$MAX_VELOCITY_ITERATIONS"
@@ -215,6 +224,10 @@ exec ros2 launch trajectory_planner trajectory_planner.launch.py \
     length_weight:="$LENGTH_WEIGHT" \
     offset_smooth_weight:="$OFFSET_SMOOTH_WEIGHT" \
     center_weight:="$CENTER_WEIGHT" \
+    corner_lookahead_distance:="$CORNER_LOOKAHEAD_DISTANCE" \
+    corner_anticipation_weight:="$CORNER_ANTICIPATION_WEIGHT" \
+    corner_anticipation_fraction:="$CORNER_ANTICIPATION_FRACTION" \
+    corner_trigger_fraction:="$CORNER_TRIGGER_FRACTION" \
     corridor_fraction:="$CORRIDOR_FRACTION" \
     max_optimization_iterations:="$MAX_OPTIMIZATION_ITERATIONS" \
     max_velocity_iterations:="$MAX_VELOCITY_ITERATIONS" \
