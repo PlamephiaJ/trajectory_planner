@@ -7,10 +7,10 @@ set -e
 # 始终基于脚本自身的位置解析路径，不受调用脚本时所在目录的影响。
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
-# 脚本位于 ${WORKSPACE_DIR}/src/trajectory_planner，地图位于
-# ${WORKSPACE_DIR}/map_process。
+# 脚本位于 ${WORKSPACE_DIR}/src/trajectory_planner，地图位于脚本同级的
+# maps 目录。
 WORKSPACE_DIR="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
-MAP_PROCESS_DIR="${WORKSPACE_DIR}/map_process"
+MAPS_DIR="${SCRIPT_DIR}/maps"
 
 ROS_SETUP="/opt/ros/humble/setup.bash"
 
@@ -22,11 +22,11 @@ REVERSE=false
 DIRECTION=clockwise # 可选值：counterclockwise、clockwise
 
 # 地图名称。地图文件应位于：
-# ${MAP_PROCESS_DIR}/${MAP_NAME}/${MAP_NAME}.yaml
+# ${MAPS_DIR}/${MAP_NAME}/${MAP_NAME}.yaml
 # 也可以把地图名称作为第一个参数传入，例如：
 # ./run_trajectory_planner_ros2.sh Spielberg
 MAP_NAME="${1:-map_202609032}"
-MAP_DIR="${MAP_PROCESS_DIR}/${MAP_NAME}"
+MAP_DIR="${MAPS_DIR}/${MAP_NAME}"
 RUN_TIMESTAMP="$(date '+%Y%m%d_%H%M%S')"
 RUN_DIR="${MAP_DIR}/${RUN_TIMESTAMP}"
 
@@ -81,8 +81,8 @@ OFFSET_SMOOTH_WEIGHT=0.15
 CENTER_WEIGHT=0.001
 # 弯道预判：前视距离、引导权重、外侧偏移比例和触发曲率比例。
 CORNER_LOOKAHEAD_DISTANCE=1.50
-CORNER_ANTICIPATION_WEIGHT=0.25
-CORNER_ANTICIPATION_FRACTION=0.65
+CORNER_ANTICIPATION_WEIGHT=0.8
+CORNER_ANTICIPATION_FRACTION=0.8
 CORNER_TRIGGER_FRACTION=0.55
 CORRIDOR_FRACTION=0.92
 MAX_OPTIMIZATION_ITERATIONS=100
@@ -113,8 +113,8 @@ colcon build \
 
 source "${WORKSPACE_DIR}/install/setup.bash"
 
-# 后续参数保存和 ROS2 launch 均在 map_process 目录中执行。
-cd "$MAP_PROCESS_DIR"
+# 后续参数保存和 ROS2 launch 均在 maps 目录中执行。
+cd "$MAPS_DIR"
 mkdir -p "$RUN_DIR"
 
 # 保存本次运行所使用的参数。参数和其他产物位于同一个时间戳目录中。
