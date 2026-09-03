@@ -23,6 +23,9 @@ trajectory_planner:
     centerline_smoothing: 0.25
     vehicle_width: 0.30
     wall_margin: 0.05
+    # Minimum feasible vehicle-center turning radius; 0 disables the constraint.
+    # Current vehicle measured turning diameter is approximately 1.8 m.
+    min_turning_radius: 0.90
     # Fill only occupied components this small and fully enclosed by free space.
     max_occupied_speckle_area: 2
 
