@@ -53,7 +53,7 @@ def plan_trajectory(
     _validate_dense_clearance(
         map_data, track_mask, racing_line, point_clearance, config)
     yaw, curvature, _, segment_length = curve_geometry(racing_line)
-    _validate_turning_radius(curvature, config)
+    _validate_turning_radius(racing_line, curvature, config)
     speed = velocity_profile(curvature, segment_length, config)
     return Trajectory(
         x=racing_line[:, 0],
@@ -139,18 +139,22 @@ def _turning_radius_violation(
 
 
 def _validate_turning_radius(
+    racing_line: np.ndarray,
     curvature: np.ndarray,
     config: PlannerConfig,
 ) -> None:
     violation = _turning_radius_violation(curvature, config)
     if violation <= 1.0e-6:
         return
-    peak_curvature = float(np.max(np.abs(curvature)))
+    peak_index = int(np.argmax(np.abs(curvature)))
+    peak_curvature = abs(float(curvature[peak_index]))
     achieved_radius = (
         1.0 / peak_curvature if peak_curvature > 0.0 else float('inf'))
+    x, y = racing_line[peak_index]
     raise PlanningError(
-        f'Trajectory requires a turning radius of {achieved_radius:.3f} m, '
-        f'but min_turning_radius is {config.min_turning_radius:.3f} m '
+        f'Trajectory requires a turning radius of {achieved_radius:.3f} m at '
+        f'index {peak_index} (x={x:.3f}, y={y:.3f}), but '
+        f'min_turning_radius is {config.min_turning_radius:.3f} m '
         f'(peak curvature {peak_curvature:.3f} 1/m; allowed '
         f'{config.max_curvature:.3f} 1/m).')
 
