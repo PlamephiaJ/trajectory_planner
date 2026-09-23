@@ -40,21 +40,32 @@ def plan_trajectory(
         map_data, track_mask, centerline, normals)
     _validate_track_width(left_width, right_width, config)
 
-    offsets = optimize_racing_line(
-        centerline, normals, left_width, right_width, config)
-    offsets, point_clearance = enforce_clearance(
-        map_data, track_mask, centerline, normals, offsets,
-        config.required_clearance)
-    offsets, point_clearance = _refine_for_lap_time(
-        map_data, track_mask, centerline, normals, left_width, right_width,
-        offsets, point_clearance, config)
+    if config.centerline_only:
+        # build_centerline already extracts the medial skeleton of the
+        # traversable track. Keep it unchanged in this mode.
+        offsets = np.zeros(len(centerline), dtype=float)
+        point_clearance = np.minimum(left_width, right_width)
+    else:
+        offsets = optimize_racing_line(
+            centerline, normals, left_width, right_width, config)
+        offsets, point_clearance = enforce_clearance(
+            map_data, track_mask, centerline, normals, offsets,
+            config.required_clearance)
+        offsets, point_clearance = _refine_for_lap_time(
+            map_data, track_mask, centerline, normals, left_width, right_width,
+            offsets, point_clearance, config)
 
     racing_line = centerline + offsets[:, None] * normals
     _validate_dense_clearance(
         map_data, track_mask, racing_line, point_clearance, config)
     yaw, curvature, _, segment_length = curve_geometry(racing_line)
-    _validate_turning_radius(racing_line, curvature, config)
-    speed = velocity_profile(curvature, segment_length, config)
+    if not config.centerline_only:
+        _validate_turning_radius(racing_line, curvature, config)
+    speed = (
+        np.zeros(len(centerline), dtype=float)
+        if config.centerline_only
+        else velocity_profile(curvature, segment_length, config)
+    )
     return Trajectory(
         x=racing_line[:, 0],
         y=racing_line[:, 1],

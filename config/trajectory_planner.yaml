@@ -21,6 +21,9 @@ trajectory_planner:
     # Vehicle geometry and trajectory sampling (metres).
     spacing: 0.20
     centerline_smoothing: 0.25
+    # Publish/export the extracted centerline without racing-line or lap-time
+    # line optimization.
+    centerline_only: false
     vehicle_width: 0.30
     wall_margin: 0.05
     # Minimum feasible vehicle-center turning radius; 0 disables the constraint.

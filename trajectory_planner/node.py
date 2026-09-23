@@ -13,6 +13,7 @@ from .exceptions import PlanningError
 from .exporters import (
     save_clean_map,
     save_compact_csv,
+    save_centerline_csv,
     save_detailed_csv,
     save_preview,
 )
@@ -36,17 +37,27 @@ class TrajectoryPlannerNode(Node):
         declare_parameters(self)
         map_yaml = self._required_path('map_yaml')
         self.get_logger().info(f'Planning trajectory from {map_yaml}')
+        self.centerline_only = bool(
+            self.get_parameter('centerline_only').value)
         self.trajectory = plan_trajectory(
             map_yaml, planner_config_from_node(self))
         csv_path, clean_yaml_path, clean_image_path = self._export_outputs(
             map_yaml)
         self._create_publishers()
         self._publish()
+        if self.centerline_only:
+            summary = (
+                f'Published {len(self.trajectory.x)} centerline points, '
+                f'{self.trajectory.length:.2f} m, direction '
+                f'{self.trajectory.direction}')
+        else:
+            summary = (
+                f'Published {len(self.trajectory.x)} points, '
+                f'{self.trajectory.length:.2f} m, estimated lap '
+                f'{self.trajectory.estimated_lap_time:.2f} s, direction '
+                f'{self.trajectory.direction}')
         self.get_logger().info(
-            f'Published {len(self.trajectory.x)} points, '
-            f'{self.trajectory.length:.2f} m, estimated lap '
-            f'{self.trajectory.estimated_lap_time:.2f} s, direction '
-            f'{self.trajectory.direction}; removed '
+            f'{summary}; removed '
             f'{self.trajectory.map_data.removed_occupied_speckle_cells} '
             f'occupied speckle cells; clean map: {clean_yaml_path}, '
             f'{clean_image_path}; CSV: {csv_path}')
@@ -63,10 +74,13 @@ class TrajectoryPlannerNode(Node):
             Path(output_value).expanduser()
             if output_value else map_yaml.with_name(
                 f'{map_yaml.stem}_trajectory.csv'))
-        exporter = (
-            save_detailed_csv
-            if bool(self.get_parameter('detailed_csv').value)
-            else save_compact_csv)
+        if self.centerline_only:
+            exporter = save_centerline_csv
+        else:
+            exporter = (
+                save_detailed_csv
+                if bool(self.get_parameter('detailed_csv').value)
+                else save_compact_csv)
         csv_path = exporter(self.trajectory, output)
         clean_yaml_value = str(self.get_parameter('clean_map_yaml').value)
         clean_yaml = (
@@ -99,14 +113,16 @@ class TrajectoryPlannerNode(Node):
             OccupancyGrid, parameter('map_topic'), qos)
         self.path_publisher = publisher(
             PathMessage, parameter('path_topic'), qos)
+        self.centerline_marker_publisher = publisher(
+            Marker, parameter('centerline_marker_topic'), qos)
+        if self.centerline_only:
+            return
         self.speed_publisher = publisher(
             Float32MultiArray, parameter('speed_topic'), qos)
         self.data_publisher = publisher(
             Float32MultiArray, parameter('trajectory_data_topic'), qos)
         self.trajectory_marker_publisher = publisher(
             Marker, parameter('trajectory_marker_topic'), qos)
-        self.centerline_marker_publisher = publisher(
-            Marker, parameter('centerline_marker_topic'), qos)
 
     def _publish(self) -> None:
         from std_msgs.msg import Header
@@ -117,10 +133,12 @@ class TrajectoryPlannerNode(Node):
         )
         self.map_publisher.publish(occupancy_grid(self.trajectory, header))
         self.path_publisher.publish(path_message(self.trajectory, header))
-        self.speed_publisher.publish(speed_array(self.trajectory))
-        self.data_publisher.publish(trajectory_data_array(self.trajectory))
         self.centerline_marker_publisher.publish(
             centerline_marker(self.trajectory, header))
+        if self.centerline_only:
+            return
+        self.speed_publisher.publish(speed_array(self.trajectory))
+        self.data_publisher.publish(trajectory_data_array(self.trajectory))
         self.trajectory_marker_publisher.publish(
             speed_marker(self.trajectory, header))
 

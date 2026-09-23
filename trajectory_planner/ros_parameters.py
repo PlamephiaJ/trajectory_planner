@@ -24,6 +24,7 @@ NODE_DEFAULTS = {
 PLANNER_DEFAULTS = {
     'spacing': 0.20,
     'centerline_smoothing': 0.25,
+    'centerline_only': False,
     'vehicle_width': 0.30,
     'wall_margin': 0.05,
     'min_turning_radius': 0.0,

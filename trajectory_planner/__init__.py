@@ -5,6 +5,7 @@ from .exceptions import PlanningError
 from .exporters import (
     save_clean_map,
     save_compact_csv,
+    save_centerline_csv,
     save_detailed_csv,
     save_preview,
 )
@@ -19,6 +20,7 @@ __all__ = [
     'plan_trajectory',
     'save_clean_map',
     'save_compact_csv',
+    'save_centerline_csv',
     'save_detailed_csv',
     'save_preview',
 ]

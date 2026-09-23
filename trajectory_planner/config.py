@@ -11,6 +11,7 @@ class PlannerConfig:
 
     spacing: float = 0.20
     centerline_smoothing: float = 0.25
+    centerline_only: bool = False
     vehicle_width: float = 0.30
     wall_margin: float = 0.05
     min_turning_radius: float = 0.0

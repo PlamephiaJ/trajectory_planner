@@ -58,6 +58,16 @@ def save_compact_csv(trajectory: Trajectory, output_path: Path) -> Path:
     return output_path
 
 
+def save_centerline_csv(trajectory: Trajectory, output_path: Path) -> Path:
+    """Write only centerline coordinates, without a speed column."""
+    output_path = _prepare_output(output_path)
+    with output_path.open('w', newline='', encoding='utf-8') as stream:
+        writer = csv.writer(stream)
+        writer.writerow(['x', 'y'])
+        writer.writerows(zip(trajectory.center_x, trajectory.center_y))
+    return output_path
+
+
 def save_detailed_csv(trajectory: Trajectory, output_path: Path) -> Path:
     """Write geometry, speed, centerline, and corridor diagnostics."""
     output_path = _prepare_output(output_path)
@@ -89,6 +99,15 @@ def save_preview(trajectory: Trajectory, output_path: Path) -> Path:
     cv2.polylines(
         canvas, [center_pixels.reshape((-1, 1, 2))], True,
         (255, 180, 0), 1, cv2.LINE_AA)
+
+    # Centerline-only runs have neither line offsets nor a velocity profile.
+    if (
+        not np.any(trajectory.lateral_offset) and
+        not np.any(trajectory.speed)
+    ):
+        if not cv2.imwrite(str(output_path), canvas):
+            raise OSError(f'Unable to write preview image: {output_path}')
+        return output_path
 
     racing = trajectory.map_data.world_to_pixel_float(
         np.column_stack((trajectory.x, trajectory.y)))

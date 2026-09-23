@@ -6,7 +6,7 @@ import yaml
 
 from trajectory_planner import (
     MapData, PlannerConfig, plan_trajectory,
-    save_clean_map, save_compact_csv, save_detailed_csv,
+    save_centerline_csv, save_clean_map, save_compact_csv, save_detailed_csv,
 )
 from trajectory_planner.centerline import _orient_and_rotate_cycle
 from trajectory_planner.geometry import minimum_dense_clearance
@@ -84,6 +84,27 @@ def test_closed_trajectory_and_dynamic_limits(tmp_path):
     compact_lines = compact_csv.read_text(encoding='utf-8').splitlines()
     assert compact_lines[0] == 'x,y,speed'
     assert len(compact_lines) == len(trajectory.x) + 1
+
+
+def test_centerline_only_does_not_offset_extracted_line(tmp_path):
+    trajectory = plan_trajectory(
+        _synthetic_track(tmp_path),
+        PlannerConfig(
+            spacing=0.15,
+            centerline_only=True,
+            direction='clockwise',
+        ),
+    )
+
+    assert np.allclose(trajectory.x, trajectory.center_x)
+    assert np.allclose(trajectory.y, trajectory.center_y)
+    assert np.count_nonzero(trajectory.lateral_offset) == 0
+    assert np.count_nonzero(trajectory.speed) == 0
+
+    csv_path = save_centerline_csv(trajectory, tmp_path / 'centerline.csv')
+    csv_lines = csv_path.read_text(encoding='utf-8').splitlines()
+    assert csv_lines[0] == 'x,y'
+    assert len(csv_lines) == len(trajectory.x) + 1
 
 
 def test_explicit_map_image_overrides_yaml_image(tmp_path):
